@@ -2,7 +2,7 @@
 
 原生 macOS 应用（WKWebView 壳 + 设计化 Web UI），直接通过 `AlienFan.kext` 的 UserClient 读写风扇，无需 root、无需后台服务。
 
-当前版本 **1.3.0**，与 **AlienFan.kext 2.1.0** 配对发布；设置页会校验二者版本是否匹配。
+当前版本 **1.3.1**，与 **AlienFan.kext 2.1.0** 配对发布；设置页会校验二者版本是否匹配。
 
 ## 设计方向
 
