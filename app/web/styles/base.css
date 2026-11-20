@@ -1,0 +1,93 @@
+/* 重置、排版、焦点与降级动效 */
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+@font-face {
+  font-family: 'Chakra Petch';
+  src: url('../fonts/ChakraPetch-Regular.ttf') format('truetype');
+  font-weight: 400; font-display: swap;
+}
+@font-face {
+  font-family: 'Chakra Petch';
+  src: url('../fonts/ChakraPetch-SemiBold.ttf') format('truetype');
+  font-weight: 600; font-display: swap;
+}
+@font-face {
+  font-family: 'Chakra Petch';
+  src: url('../fonts/ChakraPetch-Bold.ttf') format('truetype');
+  font-weight: 700; font-display: swap;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('../fonts/JetBrainsMono.ttf') format('truetype');
+  font-weight: 100 800; font-display: swap;
+}
+
+html, body {
+  height: 100%;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: var(--fs-base);
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+/* 氛围层：网格 + 渐变网格 + 噪点，固定不拦截交互 */
+.atmosphere::before {
+  content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background:
+    radial-gradient(48rem 32rem at 8% -8%, rgba(225,28,45,.16), transparent 62%),
+    radial-gradient(40rem 30rem at 104% 4%, rgba(56,214,232,.10), transparent 58%),
+    radial-gradient(36rem 28rem at 60% 108%, rgba(225,28,45,.06), transparent 60%);
+}
+.atmosphere::after {
+  content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0; opacity: .5;
+  background-image:
+    linear-gradient(rgba(232,237,242,.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(232,237,242,.028) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: linear-gradient(to bottom, black, transparent 85%);
+}
+.grain {
+  position: fixed; inset: 0; pointer-events: none; z-index: 1; opacity: .045;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* 焦点可见 */
+:focus-visible {
+  outline: 2px solid var(--color-cyan);
+  outline-offset: 2px;
+}
+
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+::selection { background: var(--color-accent); color: #fff; }
+
+/* 数值统一等宽 */
+.num { font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+
+/* 入场序列：3–6 组错峰 */
+.reveal { opacity: 0; transform: translateY(18px); }
+@media (prefers-reduced-motion: no-preference) {
+  .reveal.in {
+    opacity: 1; transform: none;
+    transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out);
+  }
+  .reveal.in:nth-child(1) { transition-delay: 40ms; }
+  .reveal.in:nth-child(2) { transition-delay: 100ms; }
+  .reveal.in:nth-child(3) { transition-delay: 160ms; }
+  .reveal.in:nth-child(4) { transition-delay: 220ms; }
+  .reveal.in:nth-child(5) { transition-delay: 280ms; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  .reveal { opacity: 1; transform: none; }
+}
+
+/* 滚动条 */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--color-surface-3); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-faint); }

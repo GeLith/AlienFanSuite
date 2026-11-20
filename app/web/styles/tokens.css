@@ -1,0 +1,57 @@
+/*
+ * 设计令牌 — 工业仪表 / 精密仪器方向
+ * 碳黑底 + Alienware 红强调 + 冷青数据色，等宽数字，发丝边框
+ */
+:root {
+  /* 色彩语义层：主色 60% / 表面 30% / 强调 10% */
+  --color-bg:        #0b0d10;
+  --color-surface:   #14181d;
+  --color-surface-2: #1a1f26;
+  --color-surface-3: #222932;
+  --color-text:      #e8edf2;
+  --color-muted:     #8a95a3;
+  --color-faint:     #5b6673;
+  --color-border:    rgba(232, 237, 242, 0.10);
+  --color-border-strong: rgba(232, 237, 242, 0.20);
+
+  --color-accent:      #e11c2d;   /* Alienware 红 */
+  --color-accent-dim:  rgba(225, 28, 45, 0.14);
+  --color-accent-glow: rgba(225, 28, 45, 0.42);
+  --color-cyan:        #38d6e8;   /* 冷数据色 */
+  --color-amber:       #f2a93b;
+  --color-green:       #52d18a;
+  --color-red:         #e11c2d;
+
+  /* 字体：展示字 Chakra Petch，数据字 JetBrains Mono，中文回退苹方 */
+  --font-display: 'Chakra Petch', 'PingFang SC', sans-serif;
+  --font-data:    'JetBrains Mono', 'SF Mono', ui-monospace, monospace;
+  --font-body:    -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif;
+
+  /* 字阶（1.25 比例） */
+  --fs-xs:   0.6875rem;   /* 11 */
+  --fs-sm:   0.8125rem;   /* 13 */
+  --fs-base: 1rem;        /* 16 */
+  --fs-lg:   1.25rem;     /* 20 */
+  --fs-xl:   1.625rem;    /* 26 */
+  --fs-2xl:  2.25rem;     /* 36 */
+  --fs-3xl:  3.5rem;      /* 56 */
+  --fs-hero: 5rem;        /* 80 */
+
+  /* 间距梯度 */
+  --space-1: 4px; --space-2: 8px; --space-3: 16px;
+  --space-4: 24px; --space-5: 32px; --space-6: 48px; --space-7: 64px;
+
+  /* 圆角 */
+  --radius-sm: 3px; --radius-md: 6px; --radius-lg: 12px;
+
+  /* 阴影：三级，带环境色而非纯黑 */
+  --shadow-1: 0 2px 8px rgba(0,0,0,.28);
+  --shadow-2: 0 8px 28px rgba(0,0,0,.40);
+  --shadow-3: 0 24px 64px rgba(0,0,0,.52);
+
+  /* 动效 */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 160ms;
+  --dur-base: 320ms;
+  --dur-slow: 640ms;
+}

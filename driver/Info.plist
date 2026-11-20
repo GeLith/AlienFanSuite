@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleExecutable</key>
+	<string>AlienFan</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.dongdong.AlienFan</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>AlienFan</string>
+	<key>CFBundlePackageType</key>
+	<string>KEXT</string>
+	<key>CFBundleShortVersionString</key>
+	<string>2.1.0</string>
+	<key>CFBundleVersion</key>
+	<string>2.1.0</string>
+
+	<key>IOKitPersonalities</key>
+	<dict>
+		<!-- 主路径：直接挂在 ACPI-WMI 设备上。
+		     Dell/Alienware 的 PNP0C14 设备有 10 个（AWMI/AMW0/AMW2/AMW4/AMW5/
+		     AMWV/AMWW/WFDE/WFTE/DIAG），只有 AWCC 那个的 _UID 是 "AWCC"，
+		     用 IOPropertyMatch 精确命中它，避免重复实例。 -->
+		<key>AlienFanACPI</key>
+		<dict>
+			<key>CFBundleIdentifier</key>
+			<string>com.dongdong.AlienFan</string>
+			<key>IOClass</key>
+			<string>AlienFan</string>
+			<key>IOProviderClass</key>
+			<string>IOACPIPlatformDevice</string>
+			<key>IOPropertyMatch</key>
+			<dict>
+				<key>_UID</key>
+				<string>AWCC</string>
+			</dict>
+			<key>IOUserClientClass</key>
+			<string>AlienFanUserClient</string>
+
+			<key>AlienFanBootMode</key>
+			<integer>-1</integer>
+			<key>AlienFanBootBoost</key>
+			<integer>100</integer>
+			<key>AlienFanReapplyMs</key>
+			<integer>0</integer>
+			<key>AlienFanAllowWrite</key>
+			<true/>
+			<key>AlienFanTryDelta4</key>
+			<false/>
+		</dict>
+
+		<!-- 备路径：如果上面那条没匹配上，用 IOResources 服务自行扫描 ACPI 平面 -->
+		<key>AlienFan</key>
+		<dict>
+			<key>CFBundleIdentifier</key>
+			<string>com.dongdong.AlienFan</string>
+			<key>IOClass</key>
+			<string>AlienFan</string>
+			<key>IOProviderClass</key>
+			<string>IOResources</string>
+			<key>IOUserClientClass</key>
+			<string>AlienFanUserClient</string>
+
+			<!-- 开机自动下发的散热模式【下标】，-1 = 不动。
+			     下标对应 alienfanctl powers 列出来的档位；0 是 unlock。 -->
+			<key>AlienFanBootMode</key>
+			<integer>-1</integer>
+			<!-- 开机自动下发的 boost 百分比（0-100），0 = 不动。
+			     注意 boost 是「在 BIOS 曲线之上额外加速」，不是绝对转速。 -->
+			<key>AlienFanBootBoost</key>
+			<integer>100</integer>
+			<!-- 周期性重下发间隔（毫秒）：0 = 只下发一次 -->
+			<key>AlienFanReapplyMs</key>
+			<integer>0</integer>
+			<!-- 是否允许写入（false 时驱动纯只读，可安全试探测） -->
+			<key>AlienFanAllowWrite</key>
+			<true/>
+			<!-- 是否尝试 delta=4 的 Aurora R7 / Area 51R4 设备。
+			     笔记本保持 false，避免发出无意义的 0x10/0x11 命令。 -->
+			<key>AlienFanTryDelta4</key>
+			<false/>
+		</dict>
+	</dict>
+
+	<key>OSBundleLibraries</key>
+	<dict>
+		<key>com.apple.iokit.IOACPIFamily</key>
+		<string>1.4</string>
+		<key>com.apple.kpi.bsd</key>
+		<string>8.0.0</string>
+		<key>com.apple.kpi.iokit</key>
+		<string>8.0.0</string>
+		<key>com.apple.kpi.libkern</key>
+		<string>8.0.0</string>
+	</dict>
+</dict>
+</plist>

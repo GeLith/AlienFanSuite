@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fan Control — Alienware</title>
+  <link rel="stylesheet" href="styles/tokens.css">
+  <link rel="stylesheet" href="styles/base.css">
+  <link rel="stylesheet" href="styles/components.css">
+</head>
+<body class="atmosphere">
+  <div class="grain"></div>
+
+  <div class="app">
+    <!-- 顶栏 -->
+    <header class="topbar reveal">
+      <div class="brand">
+        <div class="brand-mark">FAN<span class="slash">/</span>CONTROL</div>
+        <div class="brand-sub">DELL / ALIENWARE · AWCC ACPI-WMI</div>
+      </div>
+      <div class="topbar-spacer"></div>
+      <div class="conn-pill" id="connPill"><span class="conn-dot"></span><span id="connText">连接中</span></div>
+      <div class="hottest">最高温度 <b class="num" id="topTemp">--°C</b></div>
+    </header>
+
+    <!-- 侧边导航 -->
+    <nav class="sidebar reveal">
+      <button class="nav-item active" data-view="dashboard"><span class="idx">01</span>控制台</button>
+      <button class="nav-item" data-view="curve"><span class="idx">02</span>曲线编辑</button>
+      <button class="nav-item" data-view="presets"><span class="idx">03</span>预设方案</button>
+      <button class="nav-item" data-view="advanced"><span class="idx">04</span>高级 / 协议</button>
+      <button class="nav-item" data-view="settings"><span class="idx">05</span>设置</button>
+      <div class="sidebar-foot">
+        <b>AlienFan.kext</b> <span id="footKextVer">v2.1</span><br>
+        FanControl <span id="footAppVer">v1.0</span><br>
+        WMAX 0x14 / 0x15 · ID 0x32/0x33（验证机）
+      </div>
+    </nav>
+
+    <!-- 主内容 -->
+    <main class="main" id="main">
+
+      <!-- 控制台 -->
+      <section class="view active" id="view-dashboard">
+        <div class="view-head reveal">
+          <div>
+            <div class="view-kicker">Live Telemetry</div>
+            <h1 class="view-title">实时控制台</h1>
+          </div>
+          <p class="view-note">读数直接来自 EC 的 WMAX 命令。boost 是叠加在 BIOS 曲线上的加速量，100% 时顶到 4800 RPM 上限。</p>
+        </div>
+
+        <!-- 曲线引擎主控：从顶栏移入控制台，状态与实际运行严格一致 -->
+        <div class="panel engine-center reveal" id="engineCenter">
+          <div class="engine-main">
+            <div class="engine-led" id="engineLed"></div>
+            <div class="engine-copy">
+              <div class="engine-title">曲线调速引擎</div>
+              <div class="engine-state" id="engineStateText">未启用 · 风扇按开机 / BIOS 策略运转</div>
+            </div>
+          </div>
+          <div class="engine-side">
+            <div class="engine-mem" id="engineMemText">已记住上次选择</div>
+            <button class="btn-engine" id="btnEngine">启用曲线</button>
+          </div>
+        </div>
+
+        <div class="gauges reveal">
+          <div class="panel gauge">
+            <div class="gauge-top">
+              <span class="gauge-id">FAN 0 <span class="tag num">ID 0x32</span></span>
+              <span class="gauge-boost">BOOST <b class="num" id="g0boost">--%</b></span>
+            </div>
+            <div class="gauge-value">
+              <span class="gauge-rpm num" id="g0rpm">----</span>
+              <span class="gauge-unit">RPM</span>
+              <span class="gauge-max" id="g0max">MAX ----</span>
+            </div>
+            <div class="gauge-track"><div class="gauge-fill" id="g0fill"></div></div>
+            <div class="gauge-ticks"><span>0</span><span>1200</span><span>2400</span><span>3600</span><span>4800</span></div>
+          </div>
+          <div class="panel gauge">
+            <div class="gauge-top">
+              <span class="gauge-id">FAN 1 <span class="tag num">ID 0x33</span></span>
+              <span class="gauge-boost">BOOST <b class="num" id="g1boost">--%</b></span>
+            </div>
+            <div class="gauge-value">
+              <span class="gauge-rpm num" id="g1rpm">----</span>
+              <span class="gauge-unit">RPM</span>
+              <span class="gauge-max" id="g1max">MAX ----</span>
+            </div>
+            <div class="gauge-track"><div class="gauge-fill" id="g1fill"></div></div>
+            <div class="gauge-ticks"><span>0</span><span>1200</span><span>2400</span><span>3600</span><span>4800</span></div>
+          </div>
+        </div>
+
+        <div class="temps reveal">
+          <div class="panel temp" id="temp0"><div class="temp-icon">CPU</div><div><div class="temp-name">处理器</div><div class="temp-val num" id="t0">--<small>°C</small></div></div></div>
+          <div class="panel temp" id="temp1"><div class="temp-icon">GPU</div><div><div class="temp-name">显卡</div><div class="temp-val num" id="t1">--<small>°C</small></div></div></div>
+          <div class="panel temp"><div class="temp-icon">SYS</div><div><div class="temp-name">当前模式</div><div class="temp-val num" id="tMode" style="font-size:var(--fs-lg)">--</div></div></div>
+          <div class="panel temp"><div class="temp-icon">RPM</div><div><div class="temp-name">目标转速</div><div class="temp-val num" id="tTarget" style="font-size:var(--fs-lg)">--</div></div></div>
+        </div>
+
+        <!-- 多级调节 -->
+        <div class="panel levels reveal">
+          <div class="panel-label hot">Multi-Level</div>
+          <div class="levels-head">
+            <span class="levels-title">多级调节</span>
+            <span class="levels-meta">当前档位 <b id="levelCurrent">--</b> · 点击档位立即下发<em class="levels-auto-hint"> · 曲线接管中，点击将切为手动</em></span>
+          </div>
+          <div class="step-grid" id="stepGrid">
+            <button class="step" data-pct="30"><div class="step-num">LV.1</div><div class="step-name">静音</div><div class="step-pct num">30%</div><div class="step-rpm">≈ 1500 RPM</div></button>
+            <button class="step" data-pct="50"><div class="step-num">LV.2</div><div class="step-name">均衡</div><div class="step-pct num">50%</div><div class="step-rpm">≈ 2500 RPM</div></button>
+            <button class="step" data-pct="70"><div class="step-num">LV.3</div><div class="step-name">性能</div><div class="step-pct num">70%</div><div class="step-rpm">≈ 3500 RPM</div></button>
+            <button class="step" data-pct="85"><div class="step-num">LV.4</div><div class="step-name">强冷</div><div class="step-pct num">85%</div><div class="step-rpm">≈ 4200 RPM</div></button>
+            <button class="step" data-pct="100"><div class="step-num">LV.5</div><div class="step-name">满转</div><div class="step-pct num">100%</div><div class="step-rpm">≈ 4800 RPM</div></button>
+          </div>
+          <div class="annot">
+            <div class="annot-title">二进制备注 · boost 写入</div>
+            <span class="op">WMAX(0x15, 0x02, fanId, pct)</span> — <b>com 0x15</b> = 写入命令；<b>sub 0x02</b> = 设置 boost 百分比；<b>a1</b> = 风扇 ID（<b>0x32</b> / <b>0x33</b>），0 表示两个风扇；<b>a2</b> = 百分比 0–100。下发值会叠加在 BIOS 的温控曲线之上。
+          </div>
+        </div>
+      </section>
+
+      <!-- 曲线编辑 -->
+      <section class="view" id="view-curve">
+        <div class="view-head reveal">
+          <div>
+            <div class="view-kicker">Curve Editor</div>
+            <h1 class="view-title">温度 / 转速曲线</h1>
+          </div>
+          <p class="view-note">横轴为最高温度（30–100°C），纵轴为 boost（0–100%）。拖动圆点调整；双击空白加点；右键圆点删除。</p>
+        </div>
+
+        <div class="panel curve-wrap reveal">
+          <div class="curve-head">
+            <div class="curve-legend">
+              <span><i class="line"></i>当前曲线</span>
+              <span><i class="cursor"></i>实时工作点</span>
+            </div>
+            <div class="curve-actions">
+              <button class="btn-sm" id="btnPresetFromCurve">载入预设</button>
+              <button class="btn-sm" id="btnCurveApply">立即应用</button>
+            </div>
+          </div>
+          <div class="curve-stage" id="curveStage">
+            <svg class="curve-svg" id="curveSvg" viewBox="0 0 1000 300" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="curveGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#e11c2d" stop-opacity="0.28"/>
+                  <stop offset="100%" stop-color="#e11c2d" stop-opacity="0"/>
+                </linearGradient>
+              </defs>
+              <path class="curve-area" id="curveArea"></path>
+              <path class="curve-path" id="curvePath"></path>
+              <line class="cursor-line" id="cursorLine" x1="0" y1="0" x2="0" y2="300"></line>
+              <circle class="cursor-dot" id="cursorDot" cx="0" cy="0" r="5"></circle>
+              <g id="pointGroup"></g>
+            </svg>
+            <div class="curve-axis y">
+              <span>100%</span><span>75%</span><span>50%</span><span>25%</span><span>0%</span>
+            </div>
+            <div class="curve-axis x">30°C · 45 · 60 · 75 · 90 · 100°C</div>
+            <div class="readout" id="curveReadout">最高温 <b>--°C</b> → boost <b>--%</b></div>
+          </div>
+          <div class="annot">
+            <div class="annot-title">曲线引擎</div>
+            每 <b id="annotInterval">2.0</b> 秒取最高温度，线性插值得到目标 boost；单次变化限制 <b id="annotStep">12</b>%，避免风扇忽快忽慢。切散热模式会清空 boost，曲线运行时下一拍自动补发。
+          </div>
+        </div>
+
+        <div class="panel adv-panel reveal" style="margin-top:18px">
+          <div class="adv-title">引擎参数</div>
+          <div class="param-row"><label>采样间隔</label><input type="range" id="paramInterval" min="1" max="5" step="0.5" value="2"><output id="outInterval">2.0s</output></div>
+          <div class="param-row"><label>单次限幅</label><input type="range" id="paramStep" min="1" max="30" step="1" value="12"><output id="outStep">12%</output></div>
+        </div>
+      </section>
+
+      <!-- 预设 -->
+      <section class="view" id="view-presets">
+        <div class="view-head reveal">
+          <div>
+            <div class="view-kicker">Profiles</div>
+            <h1 class="view-title">预设方案</h1>
+          </div>
+          <p class="view-note">预设保存在 <span class="num">~/Library/Application Support/AlienFan/presets.json</span>。载入后立即生效。</p>
+        </div>
+        <div class="preset-list reveal" id="presetList"></div>
+        <div style="display:flex;gap:8px;margin-top:16px">
+          <button class="btn-sm" id="btnPresetReveal">打开配置目录</button>
+          <button class="btn-sm" id="btnPresetReset">恢复内置预设</button>
+        </div>
+      </section>
+
+      <!-- 高级 -->
+      <section class="view" id="view-advanced">
+        <div class="view-head reveal">
+          <div>
+            <div class="view-kicker">Protocol & Modes</div>
+            <h1 class="view-title">高级 / 协议</h1>
+          </div>
+          <p class="view-note">所有十六进制值均附中文注解。原始 WMAX 仅用于调试，误操作可能导致风扇停转。</p>
+        </div>
+
+        <div class="adv-grid">
+          <div class="panel adv-panel reveal">
+            <div class="adv-title">散热模式</div>
+            <p class="adv-desc">模式码来自 EC 的 powers[] 表。不同档位对应不同 BIOS 温控基线；切换会清空 boost，可在曲线页重新应用。</p>
+            <div id="modeList"></div>
+            <div class="annot">
+              <div class="annot-title">二进制备注 · 模式</div>
+              <span class="op">WMAX(0x15, 0x01, 0, mode)</span> — <b>sub 0x01</b> = 设置散热模式；<b>a2</b> = 模式原始码（USTT 表）：<b>0x00</b> 自定义/手动、<b>0xA0</b> 平衡、<b>0xA1</b> 平衡-性能、<b>0xA2</b> 冷却、<b>0xA3</b> 安静、<b>0xA4</b> 性能、<b>0xA5</b> 低功耗、<b>0xAB</b> G 模式。
+            </div>
+          </div>
+
+          <div class="panel adv-panel reveal">
+            <div class="adv-title">系统开关</div>
+            <div class="switch-row">
+              <div class="switch" id="swGMode"></div>
+              <div><div style="font-family:var(--font-display);font-weight:600">G 模式</div><div class="adv-desc" style="margin:0">高性能散热策略</div></div>
+            </div>
+            <div class="annot">
+              <div class="annot-title">二进制备注 · G 模式</div>
+              <span class="op">WMAX(0x25, 0x02, 0, 0)</span> 读取状态；写入 <b>0xAB</b> 兜底。本机命令有效但读回 0，故按“支持”处理。
+            </div>
+
+            <div class="adv-title" style="margin-top:28px">引擎控制</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn-sm" id="btnEngineStop">停用曲线</button>
+              <button class="btn-sm danger" id="btnRestoreBios">恢复 BIOS 控制</button>
+            </div>
+          </div>
+
+          <div class="panel adv-panel reveal" style="grid-column:1/-1">
+            <div class="adv-title">原始 WMAX 命令</div>
+            <p class="adv-desc">直接构造 EC 调用。参数支持 0x 开头的十六进制或十进制。</p>
+            <div class="raw-grid">
+              <div class="raw-field"><label>com · 命令</label><input id="rawCom" value="0x14" spellcheck="false"></div>
+              <div class="raw-field"><label>sub · 子命令</label><input id="rawSub" value="0x05" spellcheck="false"></div>
+              <div class="raw-field"><label>a1 · 参数1</label><input id="rawA1" value="0x32" spellcheck="false"></div>
+              <div class="raw-field"><label>a2 · 参数2</label><input id="rawA2" value="0" spellcheck="false"></div>
+              <button class="raw-run" id="rawRun">执行</button>
+            </div>
+            <div class="raw-result" id="rawResult">结果：<b>--</b> · 示例：读 FAN0 转速 = com 0x14 / sub 0x05 / a1 0x32</div>
+            <div class="annot">
+              <div class="annot-title">命令速查</div>
+              <b>0x14</b> 读取 · <b>0x15</b> 写入 · <b>0x1A</b> 系统信息 · <b>0x25</b> G 模式<br>
+              <b>0x14/0x03</b> 风扇 ID（a1=0→0x32，a1=1→0x33）<br>
+              <b>0x14/0x05</b> 转速 RPM（a1 必须传 ID 而非下标）<br>
+              <b>0x14/0x09</b> 最大转速 · <b>0x14/0x04</b> 温度 · <b>0x14/0x0B</b> 当前模式<br>
+              <b>0x14/0x06</b> 百分比读数（本机不支持，恒返回 0xFE）
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 设置 / 驱动状态 -->
+      <section class="view" id="view-settings">
+        <div class="view-head reveal">
+          <div>
+            <div class="view-kicker">Settings & Diagnostics</div>
+            <h1 class="view-title">设置与驱动状态</h1>
+          </div>
+          <p class="view-note">控制软件与驱动按版本配对发布。可随时重新检测驱动，或切换界面语言。</p>
+        </div>
+
+        <div class="settings-grid">
+          <div class="panel settings-panel reveal" style="grid-column:1/-1">
+            <div class="set-head">
+              <div class="adv-title" style="margin:0">驱动绑定</div>
+              <span class="ver-badge checking" id="bindBadge">检测中…</span>
+            </div>
+            <div class="bind-row">
+              <div class="bind-cell"><span>控制软件</span><b class="num" id="setAppVer">--</b></div>
+              <div class="bind-link">⇄</div>
+              <div class="bind-cell"><span>AlienFan 驱动</span><b class="num" id="setKextVer">--</b></div>
+              <div class="bind-cell"><span>要求版本</span><b class="num" id="setReqVer">--</b></div>
+              <button class="btn-sm" id="btnRecheck">重新检测</button>
+            </div>
+            <div class="set-hint" id="bindHint">正在读取 kext 与 UserClient 状态…</div>
+          </div>
+
+          <div class="panel settings-panel reveal">
+            <div class="adv-title">驱动状态</div>
+            <div class="status-grid">
+              <div class="st-row"><span>kext 已安装</span><b id="stInstalled">--</b></div>
+              <div class="st-row"><span>内核已加载</span><b id="stLoaded">--</b></div>
+              <div class="st-row"><span>设备就绪</span><b id="stReady">--</b></div>
+              <div class="st-row"><span>UserClient 连接</span><b id="stClient">--</b></div>
+              <div class="st-row"><span>匹配方式</span><b class="num" id="stRole">--</b></div>
+              <div class="st-row"><span>ACPI 设备</span><b class="num" id="stDevice">--</b></div>
+              <div class="st-row"><span>System ID</span><b class="num" id="stSysid">--</b></div>
+              <div class="st-row"><span>风扇 / 传感器 / 模式</span><b class="num" id="stCounts">--</b></div>
+              <div class="st-row"><span>当前 boost / 模式</span><b class="num" id="stLive">--</b></div>
+            </div>
+            <div class="diag-box" id="stDiag">--</div>
+          </div>
+
+          <div class="panel settings-panel reveal" style="grid-column:1/-1">
+            <div class="adv-title">启动与状态栏</div>
+            <p class="adv-desc">开机自启以后台方式运行，仅在菜单栏显示温度；也可单独设置启动时最小化。设置立即保存到本机偏好。</p>
+            <div class="start-grid">
+              <div class="switch-row">
+                <div class="switch" id="swLaunch"></div>
+                <div>
+                  <div style="font-family:var(--font-display);font-weight:600">开机自启</div>
+                  <div class="adv-desc" style="margin:0">登录时自动后台启动，仅驻留菜单栏</div>
+                </div>
+              </div>
+              <div class="switch-row">
+                <div class="switch" id="swMinimized"></div>
+                <div>
+                  <div style="font-family:var(--font-display);font-weight:600">启动时最小化</div>
+                  <div class="adv-desc" style="margin:0">手动启动时也隐藏主窗口，仅状态栏显示</div>
+                </div>
+              </div>
+            </div>
+            <div class="adv-title" style="margin-top:24px">状态栏显示温度</div>
+            <p class="adv-desc">选择菜单栏图标上显示的温度来源，悬浮提示始终显示 CPU 与显卡两个读数。</p>
+            <div class="lang-switch" id="tempSourceSwitch">
+              <button class="lang-opt active" data-source="0">最高温</button>
+              <button class="lang-opt" data-source="1">CPU</button>
+              <button class="lang-opt" data-source="2">显卡</button>
+            </div>
+          </div>
+
+          <div class="panel settings-panel reveal">
+            <div class="adv-title">界面语言</div>
+            <p class="adv-desc">切换后立即生效，选择会保存在本机偏好中。</p>
+            <div class="lang-switch" id="langSwitch">
+              <button class="lang-opt active" data-lang="zh">简体中文</button>
+              <button class="lang-opt" data-lang="en">English</button>
+            </div>
+
+            <div class="adv-title" style="margin-top:28px">关于</div>
+            <div class="about-box">
+              <b>FanControl + AlienFan.kext</b><br>
+              ACPI/WMI · WMAX 0x14 / 0x15 · 戴尔 / Alienware 全系 AWCC 机型通用（已在 m15 R7 验证）<br>
+              协议参考：<span class="num">alien-tools</span> (MIT © Rik Lain)<br>
+              项目主页：<span class="num" id="repoUrl">见 GitHub 仓库</span>
+            </div>
+            <div class="annot">
+              <div class="annot-title">安全提示</div>
+              写入命令直接作用于 EC。误用原始 WMAX 可能导致风扇停转，请优先使用曲线与预设。
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="statusbar" id="statusbar">
+    <span class="status-dot"></span>
+    <span class="status-text" id="statusText">初始化…</span>
+    <span class="spacer"></span>
+    <span class="kbd">WMAX · ACPI/WMI · ALIENFAN</span>
+  </div>
+  <div class="toast" id="toast"></div>
+
+  <script src="scripts/bridge.js"></script>
+  <script src="scripts/i18n.js"></script>
+  <script src="scripts/app.js"></script>
+</body>
+</html>

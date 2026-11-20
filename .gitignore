@@ -1,0 +1,21 @@
+# build outputs
+driver/build/
+app/build/
+dist/AlienFanSuite-v*/
+dist/*.zip
+
+# macOS
+.DS_Store
+*.swp
+*.log
+
+# local-only previews / experiments
+app/icon-preview.png
+app/draw_icon.swift
+app/selftest.c
+
+# credentials / personal notes
+*.p12
+*.p8
+*.mobileprovision
+secrets.*
