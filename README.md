@@ -4,7 +4,7 @@
 
 在 macOS 上通过 ACPI/WMI 的 `WMAX` 命令直接读写 EC，绕过 SMC（12 代 Dell 机器没有 i8k SMM 签名，SMCDellSensors 无法工作）。风扇 boost 叠加在 BIOS 温控曲线之上，100% 对应本机 4800 RPM 上限。
 
-> 发布包里的驱动版本 **2.1.0**，控制软件版本 **1.3.0**。应用设置页会实时检测驱动安装 / 加载 / UserClient 状态，并校验版本是否匹配。
+> 发布包里的驱动版本 **2.1.0**，控制软件版本 **1.3.1**。应用设置页会实时检测驱动安装 / 加载 / UserClient 状态，并校验版本是否匹配。
 
 ## 功能
 
@@ -37,7 +37,7 @@
 从 Releases 下载 `AlienFanSuite-v*.zip`，解压后：
 
 ```bash
-cd AlienFanSuite-v1.3.0
+cd AlienFanSuite-v1.3.1
 sudo ./install.sh
 ```
 
@@ -61,7 +61,7 @@ sudo ./install.sh
 - `内核已加载 = 是`
 - `设备就绪 = 是`
 - `UserClient 连接 = 是`
-- `版本匹配`（App 1.3.0 ↔ 驱动 2.1.0）
+- `版本匹配`（App 1.3.1 ↔ 驱动 2.1.0）
 
 如某项为「否」，页面底部会给出对应处理提示。
 
@@ -130,7 +130,7 @@ sudo ./uninstall.sh
 
 ## English Quick Start
 
-- Bundle: `AlienFan.kext` 2.1.0 + `FanControl.app` 1.3.0, version-locked.
+- Bundle: `AlienFan.kext` 2.1.0 + `FanControl.app` 1.3.1, version-locked.
 - **Compatibility: works across Dell / Alienware laptops — any machine with Alienware Command Center (AWCC).** It uses the standard AWCC ACPI-WMI interface, not a model-specific implementation. Developed and verified on an Alienware m15 R7; other AWCC models should work — fan IDs / sensor maps / mode codes may differ, feedback welcome.
 - Install: unzip and `sudo ./install.sh`, then approve the kext in System Settings (or add it to OpenCore `Kernel → Add`) and reboot.
 - Open FanControl → **Settings** to verify driver installation, kernel load, device readiness, UserClient connection and version compatibility.
