@@ -80,6 +80,13 @@ static NSString *AFLS(NSString *zh, NSString *en)
 
 - (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication *)sender { return NO; }
 
+- (BOOL)windowShouldClose:(NSWindow *)window
+{
+    /* 菜单栏常驻工具：关闭按钮视为隐藏，窗口对象保留，避免悬空指针 */
+    [window orderOut:nil];
+    return NO;
+}
+
 - (void)applicationWillTerminate:(NSNotification *)notification
 {
     [_engine savePresets:_bridge.presets activeName:_bridge.activeName];
@@ -96,10 +103,14 @@ static NSString *AFLS(NSString *zh, NSString *en)
                                             backing:NSBackingStoreBuffered defer:NO];
     _window.title = AFLS(@"FAN CONTROL — Alienware 风扇控制台",
                          @"FAN CONTROL — Alienware Fan Console");
+    _window.delegate = self;
     _window.titlebarAppearsTransparent = YES;
     _window.titleVisibility = NSWindowTitleHidden;
     _window.backgroundColor = [NSColor colorWithCalibratedRed:0.043 green:0.051 blue:0.063 alpha:1];
     _window.minSize = NSMakeSize(1000, 700);
+    /* ARC 下 strong 持有的 NSWindow 必须关掉自动释放：否则点关闭按钮后
+       AppKit 会再 release 一次，_window 变野指针，重新显示时必崩 */
+    _window.releasedWhenClosed = NO;
     [_window center];
 
     /* WKWebView 配置：允许访问 app 内部 web 目录 */
@@ -254,6 +265,7 @@ static NSString *AFLS(NSString *zh, NSString *en)
 {
     /* 恢复 Dock 图标与激活态，否则 Accessory 模式下窗口无法成为 key window */
     [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
+    if (!_window) [self buildWindow];   /* 兜底：异常路径释放后重建 */
     [_window makeKeyAndOrderFront:nil];
     [NSApp activateIgnoringOtherApps:YES];
 }
