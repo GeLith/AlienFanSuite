@@ -10,6 +10,41 @@
   var LZ = function (el, zh) { return window.I18N ? window.I18N.setText(el, zh) : (el.textContent = zh); };
   var IH = function (el, html) { return window.I18N ? window.I18N.setHTML(el, html) : (el.innerHTML = html); };
 
+  /* ---------- 高频更新基础设施 ----------
+     telemetry 每秒推送，renderState 会被反复调用。缓存 DOM 引用 + 脏值写入，
+     避免重复的 querySelector / innerHTML 重建 / 全树 i18n apply。 */
+  var E = {};                       /* 常用元素引用缓存，init 时一次性采集 */
+  var lastText = Object.create(null); /* 文本内容脏值表 */
+  var lastAttr = Object.create(null); /* SVG 属性脏值表 */
+  var lastClass = Object.create(null);/* class 状态脏值表 */
+  var pendingCurveDraw = false;      /* drawCurve 的 rAF 合帧标记 */
+
+  function setText(el, key, text) {
+    if (!el) return;
+    if (lastText[key] === text) return;
+    lastText[key] = text;
+    if (el.textContent !== text) el.textContent = text;
+  }
+  function setAttr(el, key, name, val) {
+    if (!el) return;
+    var k = key + '|' + name;
+    if (lastAttr[k] === val) return;
+    lastAttr[k] = val;
+    el.setAttribute(name, val);
+  }
+  function setClass(el, key, cls, on) {
+    if (!el) return;
+    var k = key + '|' + cls;
+    if (lastClass[k] === on) return;
+    lastClass[k] = on;
+    el.classList.toggle(cls, on);
+  }
+  /* 语言切换后清脏值表，强制下一拍 renderState 重写所有动态文案 */
+  function invalidateTextCache() {
+    lastText = Object.create(null);
+    if (AF.lastState) renderState(AF.lastState);
+  }
+
   var TEMP_MIN = 30, TEMP_MAX = 100;
   var curvePoints = [];      /* [{t, b}] 工作副本 */
   var activeName = '';
@@ -40,10 +75,11 @@
   /* 启动与状态栏设置：从 telemetry 的 settings 字段回显 */
   function renderAppSettings(st) {
     if (!st) return;
-    $('swLaunch').classList.toggle('on', !!st.launchAtLogin);
-    $('swMinimized').classList.toggle('on', !!st.startMinimized);
-    document.querySelectorAll('#tempSourceSwitch .lang-opt').forEach(function (b) {
-      b.classList.toggle('active', parseInt(b.dataset.source, 10) === st.menuTempSource);
+    setClass(E.swLaunch, 'launch', 'on', !!st.launchAtLogin);
+    setClass(E.swMinimized, 'min', 'on', !!st.startMinimized);
+    (E.tempSrcBtns || []).forEach(function (b) {
+      setClass(b, 'tsrc' + b.dataset.source, 'active',
+        parseInt(b.dataset.source, 10) === st.menuTempSource);
     });
   }
 
@@ -52,72 +88,80 @@
     renderAppSettings(s.settings);
 
     // 连接状态
-    var pill = $('connPill');
-    pill.className = 'conn-pill ' + (s.connected ? 'on' : 'off');
-    LZ($('connText'), s.connected
+    var connOn = !!s.connected;
+    if (lastClass.connOn !== connOn) {
+      lastClass.connOn = connOn;
+      E.connPill.className = 'conn-pill ' + (connOn ? 'on' : 'off');
+    }
+    setText(E.connText, 'conn', connOn
       ? (s.info.fans + ' FANS · ' + s.info.powers + ' MODES')
       : '驱动未连接');
 
-    // 引擎主控（控制台内）：按钮与状态说明都取自真实运行状态 s.running
-    var btn = $('btnEngine');
-    LZ(btn, s.running ? '停用曲线' : '启用曲线');
-    btn.classList.toggle('active', !!s.running);
-    var center = $('engineCenter');
-    if (center) center.classList.toggle('running', !!s.running);
-    if ($('engineStateText')) {
-      LZ($('engineStateText'), s.running
-        ? '运行中 · 按当前曲线实时调节转速'
-        : '未启用 · 风扇按开机 / BIOS 策略运转');
-    }
-    if ($('engineMemText')) LZ($('engineMemText'), '已记住上次选择');
+    // 引擎主控：按钮与状态说明都取自真实运行状态 s.running
+    var running = !!s.running;
+    setText(E.btnEngine, 'engine', L(running ? '停用曲线' : '启用曲线'));
+    setClass(E.btnEngine, 'engbtn', 'active', running);
+    setClass(E.engineCenter, 'engcenter', 'running', running);
+    setText(E.engineStateText, 'engstate', L(running
+      ? '运行中 · 按当前曲线实时调节转速'
+      : '未启用 · 风扇按开机 / BIOS 策略运转'));
+    setText(E.engineMemText, 'engmem', L('已记住上次选择'));
 
     // 风扇
     var fans = s.fans || [];
     [0, 1].forEach(function (i) {
       var f = fans[i];
-      $('g' + i + 'rpm').textContent = f ? f.rpm : '----';
-      $('g' + i + 'boost').textContent = f ? f.boost + '%' : '--%';
-      $('g' + i + 'max').textContent = f ? 'MAX ' + f.maxRpm : 'MAX ----';
+      setText(E['g' + i + 'rpm'], 'g' + i + 'rpm', f ? String(f.rpm) : '----');
+      setText(E['g' + i + 'boost'], 'g' + i + 'boost', f ? f.boost + '%' : '--%');
+      setText(E['g' + i + 'max'], 'g' + i + 'max', f ? 'MAX ' + f.maxRpm : 'MAX ----');
       var pct = f && f.maxRpm ? Math.min(100, f.rpm / f.maxRpm * 100) : 0;
-      $('g' + i + 'fill').style.width = pct + '%';
+      var w = pct.toFixed(0) + '%';
+      if (lastAttr['g' + i + 'w'] !== w) {
+        lastAttr['g' + i + 'w'] = w;
+        E['g' + i + 'fill'].style.width = w;
+      }
     });
 
-    // 温度
+    // 温度：只改数值文本节点，不再 innerHTML 重建 <small>°C</small>
     var temps = s.temps || [];
     [0, 1].forEach(function (i) {
-      var el = $('temp' + i);
+      var el = E['temp' + i];
       var v = temps[i];
-      $('t' + i).innerHTML = (v == null ? '--' : v) + '<small>°C</small>';
-      el.classList.remove('cool', 'warm', 'hot');
-      if (v != null) el.classList.add(v >= 75 ? 'hot' : v >= 60 ? 'warm' : 'cool');
+      setText(E['tv' + i], 'tv' + i, v == null ? '--' : String(v));
+      var lvl = v == null ? '' : (v >= 75 ? 'hot' : v >= 60 ? 'warm' : 'cool');
+      ['cool', 'warm', 'hot'].forEach(function (c) {
+        setClass(el, 'temp' + i, c, c === lvl);
+      });
     });
     var hottest = temps.length ? Math.max.apply(null, temps) : null;
-    $('topTemp').textContent = (hottest == null ? '--' : hottest) + '°C';
+    setText(E.topTemp, 'topTemp', (hottest == null ? '--' : hottest) + '°C');
 
-    // 模式 / 目标
-    IH($('tMode'), esc(powerName(s.currentPower)) +
-      ' <small style="font-size:0.45em;opacity:.6;margin-left:4px">0x' +
-      (s.currentPower >>> 0).toString(16).toUpperCase().padStart(2, '0') + '</small>');
+    // 模式 / 目标：拆成固定文本节点，避免 IH() 触发的全树 i18n apply
+    setText(E.tModeName, 'tModeName', powerName(s.currentPower));
+    setText(E.tModeHex, 'tModeHex', '0x' +
+      (s.currentPower >>> 0).toString(16).toUpperCase().padStart(2, '0'));
     var target = fans.length && fans[0].boost != null ? Math.round(fans[0].boost / 100 * 4800) : null;
-    $('tTarget').textContent = target == null ? '--' : target + ' RPM';
+    setText(E.tTarget, 'tTarget', target == null ? '--' : target + ' RPM');
 
-    // 多级档位高亮
+    // 多级档位高亮（节点已缓存）
     var boost = fans.length && fans[0].boost != null ? fans[0].boost : -1;
-    document.querySelectorAll('.step').forEach(function (st) {
-      st.classList.toggle('active', Math.abs(parseInt(st.dataset.pct, 10) - boost) <= 3);
+    (E.steps || []).forEach(function (st) {
+      setClass(st, 'step' + st.dataset.pct, 'active',
+        Math.abs(parseInt(st.dataset.pct, 10) - boost) <= 3);
     });
-    $('levelCurrent').textContent = boost >= 0 ? boost + '%' : '--';
-    /* 曲线接管时给多级调节明确视觉提示，解释「点档位会自动停曲线」的互斥行为 */
-    var levelsPanel = document.querySelector('.levels');
-    if (levelsPanel) levelsPanel.classList.toggle('auto-managed', !!s.running);
+    setText(E.levelCurrent, 'level', boost >= 0 ? boost + '%' : '--');
+    /* 曲线接管时给多级调节明确视觉提示 */
+    setClass(E.levels, 'levels', 'auto-managed', running);
 
-    // 曲线工作点
-    $('cursorLine').setAttribute('x1', tx(hottest == null ? 30 : hottest));
-    $('cursorLine').setAttribute('x2', tx(hottest == null ? 30 : hottest));
-    $('cursorDot').setAttribute('cx', tx(hottest == null ? 30 : hottest));
-    $('cursorDot').setAttribute('cy', ty(boost));
-    IH($('curveReadout'), '最高温 <b>' + (hottest == null ? '--' : hottest) +
-      '°C</b> → boost <b>' + (boost >= 0 ? boost + '%' : '--') + '</b>');
+    // 曲线工作点：脏值检查 + 数值格式化，避免无谓 setAttribute
+    var cx = tx(hottest == null ? 30 : hottest).toFixed(1);
+    var cy = ty(boost).toFixed(1);
+    setAttr(E.cursorLine, 'cursorLine', 'x1', cx);
+    setAttr(E.cursorLine, 'cursorLine', 'x2', cx);
+    setAttr(E.cursorDot, 'cursorDot', 'cx', cx);
+    setAttr(E.cursorDot, 'cursorDot', 'cy', cy);
+    setText(E.roTemp, 'roTemp', (hottest == null ? '--' : hottest) + '°C');
+    setText(E.roBoost, 'roBoost', boost >= 0 ? boost + '%' : '--');
 
     // 预设列表（仅在名称变化时重建，避免打断交互）
     if (s.activeName !== activeName) {
@@ -127,7 +171,7 @@
     renderPresets(s.presets || [], s.activeName);
 
     // 模式列表
-    if (s.currentPower !== lastPower || $('modeList').children.length === 0) {
+    if (s.currentPower !== lastPower || E.modeList.children.length === 0) {
       lastPower = s.currentPower;
       renderModes(s.powers || [], s.currentPower);
     }
@@ -135,7 +179,7 @@
     // G 模式开关
     if (s.currentGMode !== lastGMode) {
       lastGMode = s.currentGMode;
-      $('swGMode').classList.toggle('on', !!s.currentGMode);
+      E.swGMode.classList.toggle('on', !!s.currentGMode);
     }
   }
 
@@ -158,26 +202,46 @@
     drawCurve();
   }
 
+  var pointEls = []; /* 控制点 circle 复用池，避免每次 innerHTML 重建 */
   function drawCurve() {
     var pts = curvePoints.slice().sort(function (a, b) { return a.t - b.t; });
     if (!pts.length) return;
     var d = pts.map(function (p, i) {
       return (i ? 'L' : 'M') + tx(p.t).toFixed(1) + ' ' + ty(p.b).toFixed(1);
     }).join(' ');
-    $('curvePath').setAttribute('d', d);
-    $('curveArea').setAttribute('d', d + ' L1000 300 L0 300 Z');
+    setAttr(E.curvePath, 'curvePath', 'd', d);
+    setAttr(E.curveArea, 'curveArea', 'd', d + ' L1000 300 L0 300 Z');
 
-    var group = $('pointGroup');
-    group.innerHTML = '';
-    pts.forEach(function (p) {
-      var idx = curvePoints.indexOf(p);
+    var group = E.pointGroup;
+    /* 数量变化时增删节点；拖动时只改属性，不触碰 DOM 结构 */
+    while (pointEls.length < pts.length) {
       var c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-      c.setAttribute('cx', tx(p.t));
-      c.setAttribute('cy', ty(p.b));
-      c.setAttribute('r', dragging === idx ? 9 : 7);
-      c.setAttribute('class', 'ctrl-point' + (dragging === idx ? ' dragging' : ''));
-      c.dataset.idx = idx;
       group.appendChild(c);
+      pointEls.push(c);
+    }
+    while (pointEls.length > pts.length) {
+      group.removeChild(pointEls.pop());
+    }
+    pts.forEach(function (p, i) {
+      var idx = curvePoints.indexOf(p);
+      var c = pointEls[i];
+      var isDrag = dragging === idx;
+      setAttr(c, 'p' + i, 'cx', tx(p.t).toFixed(1));
+      setAttr(c, 'p' + i, 'cy', ty(p.b).toFixed(1));
+      /* r 固定，放大交给 CSS transform：避免拖动时写入几何属性触发重绘 */
+      setAttr(c, 'p' + i, 'r', 7);
+      var cls = 'ctrl-point' + (isDrag ? ' dragging' : '');
+      if (c.getAttribute('class') !== cls) c.setAttribute('class', cls);
+      if (c.dataset.idx !== String(idx)) c.dataset.idx = idx;
+    });
+  }
+  /* mousemove 可能高达 120Hz，合并到每帧一次绘制 */
+  function scheduleCurveDraw() {
+    if (pendingCurveDraw) return;
+    pendingCurveDraw = true;
+    requestAnimationFrame(function () {
+      pendingCurveDraw = false;
+      drawCurve();
     });
   }
 
@@ -217,7 +281,7 @@
       var p = localPoint(e);
       curvePoints[dragging].t = Math.round(invX(p.x));
       curvePoints[dragging].b = Math.round(invY(p.y));
-      drawCurve();
+      scheduleCurveDraw();
     });
 
     window.addEventListener('mouseup', function () {
@@ -309,14 +373,17 @@
   }
 
   /* ---------- 导航 ---------- */
+  var navBtns = [], viewEls = [];
   function initNav() {
-    document.querySelectorAll('.nav-item').forEach(function (btn) {
+    navBtns = [].slice.call(document.querySelectorAll('.nav-item'));
+    viewEls = [].slice.call(document.querySelectorAll('.view'));
+    navBtns.forEach(function (btn) {
       btn.addEventListener('click', function () {
-        document.querySelectorAll('.nav-item').forEach(function (b) { b.classList.remove('active'); });
-        document.querySelectorAll('.view').forEach(function (v) { v.classList.remove('active'); });
+        for (var i = 0; i < navBtns.length; i++) navBtns[i].classList.remove('active');
+        for (var j = 0; j < viewEls.length; j++) viewEls[j].classList.remove('active');
         btn.classList.add('active');
         $('view-' + btn.dataset.view).classList.add('active');
-        $('main').scrollTop = 0;
+        E.main.scrollTop = 0;
       });
     });
   }
@@ -544,6 +611,8 @@
     syncLangButtons(lang);
     paintStatus();
     if (driverStatus) renderDriverStatus(driverStatus);
+    /* 动态文本走脏值表，切换语言后必须清表并用最新 state 重写 */
+    invalidateTextCache();
   }
 
   /* ---------- 状态条与提示 ---------- */
@@ -590,7 +659,29 @@
   }
 
   /* ---------- 启动 ---------- */
+  function cacheDom() {
+    var ids = [
+      'swLaunch', 'swMinimized', 'connPill', 'connText', 'btnEngine', 'engineCenter',
+      'engineStateText', 'engineMemText', 'topTemp', 'tModeName', 'tModeHex', 'tTarget',
+      'levelCurrent', 'cursorLine', 'cursorDot', 'roTemp', 'roBoost', 'curvePath',
+      'curveArea', 'pointGroup', 'modeList', 'swGMode', 'main', 'presetList'
+    ];
+    [0, 1].forEach(function (i) {
+      ids.push('g' + i + 'rpm', 'g' + i + 'boost', 'g' + i + 'max', 'g' + i + 'fill');
+      ids.push('temp' + i, 't' + i);
+    });
+    ids.forEach(function (id) { E[id] = $(id); });
+
+    /* 温度数值节点：t0/t1 的子文本节点（保留 <small>°C</small> 结构） */
+    E.tv0 = E.t0.firstChild;
+    E.tv1 = E.t1.firstChild;
+    E.steps = [].slice.call(document.querySelectorAll('.step'));
+    E.levels = document.querySelector('.levels');
+    E.tempSrcBtns = [].slice.call(document.querySelectorAll('#tempSourceSwitch .lang-opt'));
+  }
+
   function init() {
+    cacheDom();
     initNav();
     initCurveEvents();
     initEvents();
