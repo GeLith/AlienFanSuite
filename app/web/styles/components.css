@@ -13,8 +13,8 @@
   display: flex; align-items: center; gap: var(--space-4);
   padding: 0 28px;
   border-bottom: 1px solid var(--color-border);
-  background: rgba(11,13,16,.72);
-  backdrop-filter: blur(18px);
+  /* 用不透明底色替代 backdrop-filter：模糊层会在每次滚动时强制重绘，是滚轮卡顿主因 */
+  background: #0d1014;
 }
 .brand { display: flex; align-items: baseline; gap: 12px; }
 .brand-mark {
@@ -36,13 +36,26 @@
   font-family: var(--font-data); color: var(--color-muted);
 }
 .conn-dot {
+  position: relative;
   width: 7px; height: 7px; border-radius: 50%;
   background: var(--color-faint);
+}
+/* 连接状态呼吸环：伪元素 transform/opacity 合成，不动画 box-shadow */
+.conn-dot::after {
+  content: ""; position: absolute; inset: -4px;
+  border-radius: 50%; border: 1px solid currentColor;
+  opacity: 0; pointer-events: none;
 }
 .conn-pill.on .conn-dot { background: var(--color-green); box-shadow: 0 0 10px var(--color-green); }
 .conn-pill.on { color: var(--color-green); border-color: rgba(82,209,138,.32); }
 .conn-pill.off .conn-dot { background: var(--color-accent); box-shadow: 0 0 10px var(--color-accent); }
 .conn-pill.off { color: var(--color-accent); border-color: rgba(225,28,45,.32); }
+.conn-pill.on .conn-dot::after { animation: conn-pulse 2.2s ease-out infinite; }
+.conn-pill.off .conn-dot::after { animation: conn-pulse 1.4s ease-out infinite; }
+@keyframes conn-pulse {
+  0%   { transform: scale(.6); opacity: .7; }
+  100% { transform: scale(1.9); opacity: 0; }
+}
 
 .hottest {
   font-family: var(--font-data); font-size: var(--fs-sm);
@@ -92,6 +105,12 @@
 .nav-item.active::before {
   content: ""; position: absolute; left: 0; top: 8px; bottom: 8px;
   width: 3px; background: var(--color-accent); box-shadow: 0 0 12px var(--color-accent-glow);
+  transform-origin: center;
+  animation: nav-mark var(--dur-mid) var(--ease-out) both;
+}
+@keyframes nav-mark {
+  from { transform: scaleY(0); }
+  to   { transform: scaleY(1); }
 }
 .nav-item.active .idx { color: var(--color-accent); }
 .sidebar-foot {
@@ -102,9 +121,18 @@
 .sidebar-foot b { color: var(--color-muted); font-weight: 500; }
 
 /* ---------- 主内容 ---------- */
-.main { padding: 28px 32px 40px; overflow-y: auto; }
+.main {
+  padding: 28px 32px 40px; overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
 .view { display: none; }
-.view.active { display: block; }
+/* 视图切换淡入上滑：display 切换时重播，opacity+transform 仅走合成层 */
+.view.active { display: block; animation: view-enter var(--dur-base) var(--ease-out) both; }
+@keyframes view-enter {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: none; }
+}
 
 /* ---------- 控制台：曲线引擎主控 ---------- */
 .engine-center {
@@ -119,19 +147,26 @@
 }
 .engine-main { display: flex; align-items: center; gap: 16px; min-width: 0; }
 .engine-led {
+  position: relative;
   width: 14px; height: 14px; border-radius: 50%; flex: 0 0 auto;
   background: var(--color-faint);
   box-shadow: 0 0 0 4px rgba(255,255,255,.03);
-  transition: background var(--dur-mid) ease-out, box-shadow var(--dur-mid) ease-out;
+  transition: background var(--dur-mid) ease-out;
 }
 .engine-center.running .engine-led {
   background: var(--color-accent);
   box-shadow: 0 0 0 4px rgba(225,28,45,.14), 0 0 16px var(--color-accent-glow);
-  animation: engine-pulse 1.8s ease-in-out infinite;
 }
-@keyframes engine-pulse {
-  0%, 100% { box-shadow: 0 0 0 4px rgba(225,28,45,.14), 0 0 12px var(--color-accent-glow); }
-  50%      { box-shadow: 0 0 0 6px rgba(225,28,45,.08), 0 0 24px var(--color-accent-glow); }
+/* 脉冲改用伪元素的 transform/opacity（GPU 合成），避免动画 box-shadow 每帧重绘 */
+.engine-center.running .engine-led::after {
+  content: ""; position: absolute; inset: -4px;
+  border-radius: 50%; border: 1px solid var(--color-accent);
+  animation: engine-ring 1.8s ease-out infinite;
+  will-change: transform, opacity;
+}
+@keyframes engine-ring {
+  0%   { transform: scale(.85); opacity: .7; }
+  100% { transform: scale(1.7); opacity: 0; }
 }
 .engine-copy { min-width: 0; }
 .engine-title {
@@ -266,6 +301,7 @@
   font-variant-numeric: tabular-nums; line-height: 1.1;
 }
 .temp-val small { font-size: var(--fs-xs); color: var(--color-faint); margin-left: 2px; }
+#tModeHex { font-size: 0.45em; opacity: .6; margin-left: 4px; }
 .temp.warm .temp-val { color: var(--color-amber); }
 .temp.hot  .temp-val { color: var(--color-red); }
 .temp.cool .temp-val { color: var(--color-cyan); }
@@ -295,6 +331,7 @@
               transform var(--dur-fast) ease-out, box-shadow var(--dur-fast) ease-out;
 }
 .step:hover { border-color: var(--color-border-strong); transform: translateY(-2px); }
+.step:active { transform: translateY(0) scale(.97); }
 .step.active {
   border-color: var(--color-accent); background: var(--color-accent-dim);
   box-shadow: 0 0 20px var(--color-accent-glow) inset;
@@ -355,13 +392,25 @@
 }
 .ctrl-point {
   fill: var(--color-accent); stroke: var(--color-bg); stroke-width: 2;
-  cursor: grab; transition: r var(--dur-fast) ease-out;
+  cursor: grab;
+  transform-box: fill-box; transform-origin: center;
+  /* 用 transform 缩放替代 r 过渡：改 r 会触发几何重绘 */
+  transition: transform var(--dur-fast) ease-out, fill var(--dur-fast) ease-out;
 }
-.ctrl-point:hover { fill: #ff5a68; }
-.ctrl-point.dragging { cursor: grabbing; }
+.ctrl-point:hover { fill: #ff5a68; transform: scale(1.35); }
+.ctrl-point.dragging { cursor: grabbing; transform: scale(1.5); }
 .cursor-line { stroke: var(--color-cyan); stroke-width: 1; stroke-dasharray: 4 4; opacity: .7; }
-.cursor-dot { fill: var(--color-cyan); filter: drop-shadow(0 0 6px var(--color-cyan)); }
-.curve-path { fill: none; stroke: var(--color-accent); stroke-width: 2.5; filter: drop-shadow(0 0 8px var(--color-accent-glow)); }
+/* 工作点轻呼吸表示实时；几何位移(cx/cy)与 transform 互不干扰 */
+.cursor-dot {
+  fill: var(--color-cyan); stroke: rgba(56,214,232,.35); stroke-width: 5;
+  transform-box: fill-box; transform-origin: center;
+  animation: cursor-breathe 2s ease-in-out infinite;
+}
+@keyframes cursor-breathe {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.28); }
+}
+.curve-path { fill: none; stroke: var(--color-accent); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
 .curve-area { fill: url(#curveGrad); }
 .readout {
   position: absolute; top: 10px; right: 12px;
@@ -490,6 +539,7 @@
   transition: border-color var(--dur-fast) ease-out, color var(--dur-fast) ease-out;
 }
 .btn-sm:hover { border-color: var(--color-accent); color: var(--color-accent); }
+.btn-sm:active { transform: scale(.96); }
 .btn-sm.danger:hover { border-color: var(--color-red); color: var(--color-red); }
 
 /* 状态条 */
@@ -498,9 +548,10 @@
   height: 34px; padding: 0 32px;
   display: flex; align-items: center; gap: 10px;
   border-top: 1px solid var(--color-border);
-  background: rgba(11,13,16,.86); backdrop-filter: blur(12px);
+  background: #0d1014; /* 去掉 backdrop-filter，滚动不再触发全屏模糊重绘 */
   font-family: var(--font-data); font-size: var(--fs-xs);
   color: var(--color-muted); z-index: 5;
+  will-change: transform;
 }
 .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--color-green); }
 .statusbar.warn .status-dot { background: var(--color-accent); }
