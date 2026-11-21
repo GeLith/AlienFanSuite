@@ -12,7 +12,7 @@
 
 在 macOS 上通过 ACPI/WMI 的 `WMAX` 命令直接读写 EC，绕过 SMC（12 代 Dell 机器没有 i8k SMM 签名，SMCDellSensors 无法工作）。风扇 boost 叠加在 BIOS 温控曲线之上，100% 对应本机 4800 RPM 上限。
 
-> 发布包里的驱动版本 **2.1.0**，控制软件版本 **1.3.1**。应用设置页会实时检测驱动安装 / 加载 / UserClient 状态，并校验版本是否匹配。
+> 发布包里的驱动版本 **2.1.0**，控制软件版本 **1.3.2**。应用设置页会实时检测驱动安装 / 加载 / UserClient 状态，并校验版本是否匹配。
 
 ### 功能
 
@@ -45,7 +45,7 @@
 从 Releases 下载 `AlienFanSuite-v*.zip`，解压后：
 
 ```bash
-cd AlienFanSuite-v1.3.1
+cd AlienFanSuite-v1.3.2
 sudo ./install.sh
 ```
 
@@ -69,7 +69,7 @@ sudo ./install.sh
 - `内核已加载 = 是`
 - `设备就绪 = 是`
 - `UserClient 连接 = 是`
-- `版本匹配`（App 1.3.1 ↔ 驱动 2.1.0）
+- `版本匹配`（App 1.3.2 ↔ 驱动 2.1.0）
 
 如某项为「否」，页面底部会给出对应处理提示。
 
@@ -142,7 +142,7 @@ A fan control suite for **Hackintosh on the entire Dell / Alienware lineup (any 
 
 On macOS it talks directly to the EC via ACPI/WMI `WMAX` commands, bypassing SMC (12th-gen Dell machines lack the i8k SMM signature, so SMCDellSensors does not work). Fan boost is layered on top of the BIOS thermal curve; 100% maps to this machine's 4800 RPM ceiling.
 
-> The release bundle ships driver **2.1.0** and controller **1.3.1**. The app's Settings page checks driver installation / kernel load / UserClient status in real time and verifies version compatibility.
+> The release bundle ships driver **2.1.0** and controller **1.3.2**. The app's Settings page checks driver installation / kernel load / UserClient status in real time and verifies version compatibility.
 
 ### Features
 
@@ -175,7 +175,7 @@ On macOS it talks directly to the EC via ACPI/WMI `WMAX` commands, bypassing SMC
 Grab `AlienFanSuite-v*.zip` from Releases, unzip and run:
 
 ```bash
-cd AlienFanSuite-v1.3.1
+cd AlienFanSuite-v1.3.2
 sudo ./install.sh
 ```
 
@@ -199,7 +199,7 @@ After reboot, open FanControl and check the **Settings** page:
 - `kernel loaded = Yes`
 - `device ready = Yes`
 - `UserClient connected = Yes`
-- `version match` (App 1.3.1 ↔ driver 2.1.0)
+- `version match` (App 1.3.2 ↔ driver 2.1.0)
 
 If any item reads "No", the bottom of the page shows the corresponding hint.
 
