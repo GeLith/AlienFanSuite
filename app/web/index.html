@@ -97,7 +97,7 @@
         <div class="temps reveal">
           <div class="panel temp" id="temp0"><div class="temp-icon">CPU</div><div><div class="temp-name">处理器</div><div class="temp-val num" id="t0">--<small>°C</small></div></div></div>
           <div class="panel temp" id="temp1"><div class="temp-icon">GPU</div><div><div class="temp-name">显卡</div><div class="temp-val num" id="t1">--<small>°C</small></div></div></div>
-          <div class="panel temp"><div class="temp-icon">SYS</div><div><div class="temp-name">当前模式</div><div class="temp-val num" id="tMode" style="font-size:var(--fs-lg)">--</div></div></div>
+          <div class="panel temp"><div class="temp-icon">SYS</div><div><div class="temp-name">当前模式</div><div class="temp-val num" id="tMode" style="font-size:var(--fs-lg)"><span id="tModeName">--</span><small id="tModeHex"></small></div></div></div>
           <div class="panel temp"><div class="temp-icon">RPM</div><div><div class="temp-name">目标转速</div><div class="temp-val num" id="tTarget" style="font-size:var(--fs-lg)">--</div></div></div>
         </div>
 
@@ -161,7 +161,7 @@
               <span>100%</span><span>75%</span><span>50%</span><span>25%</span><span>0%</span>
             </div>
             <div class="curve-axis x">30°C · 45 · 60 · 75 · 90 · 100°C</div>
-            <div class="readout" id="curveReadout">最高温 <b>--°C</b> → boost <b>--%</b></div>
+            <div class="readout" id="curveReadout"><span>最高温</span> <span id="roTemp">--°C</span> <span>→ boost</span> <b id="roBoost">--%</b></div>
           </div>
           <div class="annot">
             <div class="annot-title">曲线引擎</div>
