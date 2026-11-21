@@ -52,6 +52,7 @@
   /* 动效 */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --dur-fast: 160ms;
+  --dur-mid: 240ms;
   --dur-base: 320ms;
   --dur-slow: 640ms;
 }
